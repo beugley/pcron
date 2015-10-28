@@ -13,18 +13,16 @@ User Guide
  
 pcron is short for “personal cron”.  pcron is a job execution tool for Linux/Unix servers.  pcrontab is the utility that is used to define the job schedule that is executed by pcron.
  
-pcron/pcrontab are similar to cron/crontab, which are the standard execution/scheduling tools for Linux/Unix.  pcron/pcrontab were created because cron/crontab usage is not allowed for most Linux/Unix users at Capital One.  Anyone can use pcron/pcrontab.
+pcron/pcrontab are similar to cron/crontab, which are the standard execution/scheduling tools for Linux/Unix.  pcron/pcrontab were created for systems where general usage of cron is not allowed.  Anyone can use pcron/pcrontab.
  
-NOTE: pcron is not an Enterprise-Level utility and is not approved for mission-critical tasks.  pcron has no capability to restart failed jobs and will not run jobs that were skipped due to server downtime.  Please use Control-M for all mission-critical tasks.
- 
- 
+
 **pcrontab**
  
 pcrontab is the interface for defining a job schedule.  It works nearly the same as does the standard Linux/Unix tool crontab.  pcrontab allows a user to schedule a job to the minute level.  A job can be scheduled for any combination of minute, hour, day, month, and/or weekday.
 pcrontab can be invoked in the following 4 ways:
   * pcrontab –l <p>lists the user's pcrontab file.</p>
   * pcrontab -r <p>remove the user's pcrontab file.</p>
-  * pcrontab -e <p>edit the user's pcrontab file or create an empty file to edit if the pcrontab file does not exist.  pcrontab invokes the “vi” editor to edit the file.</p>
+  * pcrontab -e <p>edit the user's pcrontab file or create an empty file to edit if the pcrontab file does not exist.  pcrontab invokes the “vi” editor to edit the file.  To use a different editor, set the EDITOR environment variable to the full path and name of your preferred editor (e.g.: export EDITOR=/usr/bin/emacs)</p>
   * pcrontab file <p>create or replace the user’s pcrontab file with the specified file.</p>
  
  
@@ -54,14 +52,24 @@ execution every other hour.  Steps are also permitted after an asterisk, so if y
 just use "*/2".
  
  
-The user’s pcrontab file is stored in your $HOME/pcron directory.  That directory is created by pcrontab if it does not already exist.  The pcrontab file has the user ID as its name.  The pcrontab file should never be edited directly by the user; always use “pcrontab –e” to modify it.  There is a good reason for this; the pcrontab executable includes syntax checking and will not let you create an invalid pcrontab file.  Direct editing of your pcrontab file could result in invalid commands that are not executed by pcron or may even produce undesirable results.  In short, pcrontab performs full syntax checking of the pcrontab file and should be used.
+By default, the user’s pcrontab file is stored in the $HOME/pcron directory.  That directory is created by pcrontab if it does not already exist.  The pcrontab file has the user ID as its name.  The pcrontab file should never be edited directly by the user; always use “pcrontab –e” to modify it.  There is a good reason for this; the pcrontab executable includes syntax checking and will not let you create an invalid pcrontab file.  Direct editing of your pcrontab file could result in invalid commands that are not executed by pcron or may even produce undesirable results.  In short, pcrontab performs full syntax checking of the pcrontab file and should be used.
+
+The user can specify an alternate location for the pcrontab file by setting the PCRONTAB_DIR environment variable, relative to $HOME. For example, if PCRONTAB_DIR is set to "pcron_alt", then the pcrontab file will be located in $HOME/pcron_alt.  This feature will allow a user to run pcron/pcrontab on mulitple hosts within an environment where user home directories are NFS-mounted and shared across all hosts.  To use this feature, add code similar to the following to your .profile or .bash_profile:
+```
+          if [[ `hostname -s` == 'abchost' ]]
+          then
+               export PCRONTAB_DIR=pcron_abchost
+          fi
+```
+The above code will locate the pcrontab file in $HOME/pcron_abchost on the abchost host.  For all other hosts, the pcrontab file will be located in the default $HOME/pcron.  
+NOTE: If you don't really need to run different pcron schedules on multiple hosts, or are in an environment where $HOME is not shared, then do not set PCRONTAB_DIR.
  
 pcrontab only facilitates creation of the pcrontab file.  It does not execute any of the commands.  See the next section on pcron for execution.
  
  
 **pcron**
  
-pcron is the utility that executes the commands that are scheduled in the pcrontab file.  Each user must run their own instance of pcron.  pcron will read the pcrontab file that is in the $HOME/pcron directory.  To run pcron, execute “nohup pcron &”.  Your pcron process will then continue to execute after you log off and will run the scheduled tasks as defined in your pcrontab file.  You should not, and can not, run more than 1 instance of pcron.
+pcron is the utility that executes the commands that are scheduled in the pcrontab file.  Each user must run their own instance of pcron.  pcron will read the pcrontab file that is in the $HOME/pcron directory by default, or the pcrontab file that is in $HOME/$PCRONTAB_DIR if PCRONTAB_DIR is set.  To run pcron, execute “nohup pcron &”.  Your pcron process will then continue to execute after you log off and will run the scheduled tasks as defined in your pcrontab file.  You can not run more than 1 instance of pcron for each pcrontab file.
  
 pcron includes logic to read changes to the pcrontab file that are made while pcron is running.  In other words, if you are running pcron you can use pcrontab to modify your pcrontab file (add new jobs, remove jobs, or change the schedule of jobs) without having to stop and restart pcron.  pcron will notice when a pcrontab file is changed and will read the new job schedule.
  
@@ -71,8 +79,8 @@ pcron includes logic to prohibit multiple instances of itself being run by the s
  
 pcron writes to a log file named pcron.log in your $HOME/pcron directory.  It includes a line when it starts, a line for each job that it executes, and a line for each time it reloads the pcrontab file due to modification.
  
-Some jobs that pcron executes may write text to stdout and/or stderr.  By default, pcron will ignore all such output.  But, you can optionally include a line in your pcrontab file that will direct pcron to mail this output to your Outlook mailbox.  Output from each job execution will be mailed separately.  The line must look as follows, with your name substitued in place of First.Last:
-MAILTO=First.Last@capitalone.com
+Some jobs that pcron executes may write text to stdout and/or stderr.  By default, pcron will ignore all such output.  But, you can optionally include a line in your pcrontab file that will direct pcron to mail this output to your mailbox.  Output from each job execution will be mailed separately.  The line must look as follows:
+MAILTO=your_email_address
  
  
 **Daily notification that your pcron server is running**
@@ -88,7 +96,7 @@ The echo command will run every morning at 9AM.  Since the output is going to st
 Pcron/pcrontab were created by porting the C source for cron/crontab from BSD (Berkeley Software Distribution) Unix.  The C source for pcron and pcrontab has been modified to compile on both HP-UX and Linux.  The code has also been modified to remove all logic that will enable pcron to register itself as a daemon.  pcron has no capability to launch processes as other users.  Therefore, each user must run their own instance of pcron.  pcron uses the standard fork() and exec() system calls to execute child processes as scheduled in the pcrontab file.
 There is one significant difference between pcron and cron.  Cron launches processes with no environment.  Pcron inherits the users environment (set by your .profile upon login) and passes that along to its child processes (those that are scheduled with pcrontab).  This means that all of your scheduled processes will already have your environment when they start.  Specifically, this includes the PATH environment variable which specifies a list of directories to search for any executable.
  
-Why pcron/pcrontab?  Why not?  They make use of scheduling logic that already existed in cron/crontab rather than writing our own.  The logic is solid because it’s been in use for a few decades, so why not leverage it?  It’s completely legal; BSD Unix is free and anyone can take the source code and modify it for their own use.  The only caveat is that the source code must continue to include the original headers and give credit to the original authors.  pcron/pcrontab source does include that information.  Credit goes to Paul Vixie for an excellent implementation of cron/crontab.
+Why pcron/pcrontab?  Why not?  They make use of scheduling logic that already existed in cron/crontab rather than writing our own.  The logic is solid because it’s been in use for a few decades, so why not leverage it?  Credit goes to Paul Vixie for an excellent implementation of cron/crontab.
 
 
 
@@ -96,11 +104,10 @@ Compilation Instructions
 ========================
 pcron/pcrontab has been modified to compile and run on HP-UX and Red Hat Linux.  Compilation on other *nix platforms may require additional modifications.  If you modify the code, please try to ensure that it will still compile and run correctly on both HP-UX and Red Hat Linux.
 
-  1. Copy the pcron source code to your Unix host.  The source code contains
+  1. Pull the repo to your *nix host.  The source code contains
      a main directory with several C source files and 2 subdirectories, lib
      and include, that contain additional C source files.
   2. set your working directory to the top-level pcron source directory.
-  3. Run "make clean all" to recompile the pcron and pcrontab binaries.  The
-     "make" process should complete in no more than 30 seconds.
+  3. Run "make clean all" to recompile the pcron and pcrontab binaries.
 
 
